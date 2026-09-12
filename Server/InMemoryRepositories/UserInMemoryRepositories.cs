@@ -12,6 +12,10 @@ public class UserInMemoryRepositories : IUserRepository
         _ = AddAsync(new User("Nagibatel228", "228")).Result;
         _ = AddAsync(new User("lox337", "40999")).Result;
         _ = AddAsync(new User("Otez", "777")).Result;
+        _ = AddAsync(new User("Inquisitor_Greyfax", "purgeTheHeretic1")).Result;
+        _ = AddAsync(new User("Alpharius", "iamalpharius")).Result;
+        _ = AddAsync(new User("GorkAndMork", "waaagh2026")).Result;
+        _ = AddAsync(new User("BloodRaven99", "hippityHoppity")).Result;
     }
     public Task<User> AddAsync(User user)
     {

@@ -8,15 +8,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RepositoryContracts", "Serv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InMemoryRepositories", "Server\InMemoryRepositories\InMemoryRepositories.csproj", "{98374AAF-25F4-4E81-B344-635E4093336F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLI", "Server\CLI\CLI.csproj", "{6AE09534-1BC5-4B6D-BD45-98ED04342335}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{3D3F9256-E16C-4037-AD9B-2AD2044F67CB} = {65900BC3-C480-4CED-B554-71DD3B180FE5}
 		{807E07FE-CC56-4498-AF34-932D956DE30E} = {65900BC3-C480-4CED-B554-71DD3B180FE5}
 		{98374AAF-25F4-4E81-B344-635E4093336F} = {65900BC3-C480-4CED-B554-71DD3B180FE5}
+		{6AE09534-1BC5-4B6D-BD45-98ED04342335} = {65900BC3-C480-4CED-B554-71DD3B180FE5}
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{3D3F9256-E16C-4037-AD9B-2AD2044F67CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -31,5 +33,9 @@ Global
 		{98374AAF-25F4-4E81-B344-635E4093336F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{98374AAF-25F4-4E81-B344-635E4093336F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{98374AAF-25F4-4E81-B344-635E4093336F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AE09534-1BC5-4B6D-BD45-98ED04342335}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AE09534-1BC5-4B6D-BD45-98ED04342335}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AE09534-1BC5-4B6D-BD45-98ED04342335}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AE09534-1BC5-4B6D-BD45-98ED04342335}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

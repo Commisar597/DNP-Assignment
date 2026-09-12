@@ -6,15 +6,11 @@ public class User
     public string Name { get; set; }
     public string Password { get; set; }
     public string UserStatus { get; set; }
-    public int? AmountOfPosts { get; set; }
-    public int? AmountOfDislikes { get; set; }
-    public int? AmountOfComments { get; set; }
-    public int? AmountOfLikes { get; set; }
 
     public User(string name, string password)
     {
-       Name = name; 
-       Password = password;
-       UserStatus = "neutral";
+        Name = name;
+        Password = password;
+        UserStatus = "neutral";
     }
 }
