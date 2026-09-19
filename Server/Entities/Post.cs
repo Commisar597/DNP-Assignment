@@ -4,8 +4,8 @@ public class Post
 {
     public int PostId { get; set; }
     public int OwnerId { get; set; }
-    public string Title { get; }
-    public string Body { get; }
+    public string Title { get; set;}
+    public string Body { get; set;}
 
     public Post(string body, string title, int ownerId)
     {
