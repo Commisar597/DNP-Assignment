@@ -13,4 +13,6 @@ public class Comment
         PostId = postId;
         OwnerId = ownerId;
     }
+    
+    public Comment(){}
 }

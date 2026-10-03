@@ -13,4 +13,6 @@ public class User
         Password = password;
         UserStatus = "neutral";
     }
+    
+    public User(){}
 }

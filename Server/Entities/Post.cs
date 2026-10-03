@@ -13,4 +13,6 @@ public class Post
         Title = title;
         OwnerId = ownerId;
     }
+    
+    public Post(){}
 }
