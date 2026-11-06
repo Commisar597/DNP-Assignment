@@ -1,0 +1,78 @@
+﻿@page "/users/create"
+@using APIContracts
+@using BlazorApp.Services
+@inject IUserService UserService
+@inject NavigationManager Navigation
+
+<div class="container mt-4" style="max-width: 600px;">
+    <h3>Register New Member</h3>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="card p-4 shadow-sm mt-3">
+        <div class="mb-3">
+            <label class="form-label">Username / Nickname:</label>
+            <input type="text" class="form-control" @bind="name" placeholder="e.g. Commissar_Yarrick" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Password:</label>
+            <input type="password" class="form-control" @bind="password" placeholder="Password..." />
+        </div>
+
+        <div class="d-flex justify-content-between mt-3">
+            <a href="/users" class="btn btn-outline-secondary">Cancel</a>
+            <button class="btn btn-primary" @onclick="CreateUser" disabled="@isSubmitting">
+                @(isSubmitting ? "Creating..." : "Register")
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string name = string.Empty;
+    private string password = string.Empty;
+    private string? errorMessage;
+    private bool isSubmitting = false;
+
+    private async Task CreateUser()
+    {
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errorMessage = "Username cannot be empty.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            errorMessage = "Enter a password.";
+            return;
+        }
+
+        try
+        {
+            isSubmitting = true;
+            var dto = new CreateUserDto
+            {
+                Name = name,
+                Password = password
+            };
+
+            var createdUser = await UserService.CreateUserAsync(dto);
+            Navigation.NavigateTo($"/users/{createdUser.UserId}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

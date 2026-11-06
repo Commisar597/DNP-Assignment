@@ -1,0 +1,44 @@
+[
+  {
+    "CommentId": 1,
+    "Body": "You forgot to burn incense over the RJ-45 port. And check if your network cable has been properly blessed.",
+    "PostId": 1,
+    "OwnerId": 1,
+    "ParentCommentId": null
+  },
+  {
+    "CommentId": 2,
+    "Body": "I burned incense three times! The cable was blessed by the Bishop of Cable Trays, but it still blinks red.",
+    "PostId": 1,
+    "OwnerId": 1,
+    "ParentCommentId": 1
+  },
+  {
+    "CommentId": 3,
+    "Body": "The smoke is described in suspicious detail. Dispatching a squad of Servitors to inspect your citadel.",
+    "PostId": 1,
+    "OwnerId": 2,
+    "ParentCommentId": null
+  },
+  {
+    "CommentId": 4,
+    "Body": "STUPID 'UMIE! YA SHUDDA PAINTED IT WIV 'UMIE BLOOD, NOT REGULAR PAINT! AN' SHOUTED WAAAGH LOUDER WHEN BOOTING UP!",
+    "PostId": 3,
+    "OwnerId": 4,
+    "ParentCommentId": null
+  },
+  {
+    "CommentId": 5,
+    "Body": "Interesting post. Actually, I wrote this one from my alt account.",
+    "PostId": 2,
+    "OwnerId": 5,
+    "ParentCommentId": null
+  },
+  {
+    "CommentId": 6,
+    "Body": "Added this post to my 3rd millennium meme heritage gallery.",
+    "PostId": 4,
+    "OwnerId": 3,
+    "ParentCommentId": null
+  }
+]

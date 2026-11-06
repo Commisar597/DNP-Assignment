@@ -1,0 +1,193 @@
+﻿@page "/"
+@page "/posts"
+@using APIContracts
+@using BlazorApp.Services
+@inject IPostService PostService
+@inject IUserService UserService
+@inject NavigationManager Navigation
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Forum — All Discussions</h3>
+        <button class="btn btn-primary btn-sm" @onclick="TogglePostForm">
+            @(showPostForm ? "Close" : "+ Create Topic")
+        </button>
+    </div>
+
+    @if (showPostForm)
+    {
+        <div class="card p-3 mb-4 shadow-sm bg-light">
+            <h5 class="mb-3">New Discussion Topic</h5>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger py-2">@errorMessage</div>
+            }
+
+            @if (users == null)
+            {
+                <p><em>Loading users...</em></p>
+            }
+            else if (!users.Any())
+            {
+                <div class="alert alert-warning py-2">
+                    No users found! Please <a href="/users/create">register a member</a> first.
+                </div>
+            }
+            else
+            {
+                <div class="mb-2">
+                    <label class="form-label small">Topic Author:</label>
+                    <select class="form-select form-select-sm" @bind="selectedOwnerId">
+                        @foreach (var user in users)
+                        {
+                            <option value="@user.UserId">@user.Name (ID: @user.UserId)</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label small">Topic Title:</label>
+                    <input type="text" class="form-control form-control-sm" @bind="title" placeholder="Enter title..." />
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label small">Post Content:</label>
+                    <textarea class="form-control form-control-sm" rows="3" @bind="body" placeholder="Write your message text..."></textarea>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <button class="btn btn-sm btn-success" @onclick="CreatePost" disabled="@isSubmitting">
+                        @(isSubmitting ? "Publishing..." : "Publish Post")
+                    </button>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Лента постов -->
+    @if (posts == null)
+    {
+        <p><em>Loading posts...</em></p>
+    }
+    else if (!posts.Any())
+    {
+        <p class="text-muted">No posts yet.</p>
+    }
+    else
+    {
+        <div class="posts-list">
+            @foreach (var post in posts)
+            {
+                <div class="card mb-3 p-3 shadow-sm">
+                    <h4>
+                        <a href="/posts/@post.PostId">@post.Title</a>
+                    </h4>
+                    <p class="text-muted mb-1">
+                        Author: <a href="/users/@post.OwnerId">@GetUserName(post.OwnerId)</a>
+                    </p>
+                    <p class="text-truncate mb-0">@post.Body</p>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<PostResponseDto>? posts;
+    private IEnumerable<UserResponseDto>? users;
+    private Dictionary<int, string> usersMap = new();
+
+    private bool showPostForm = false;
+    private int selectedOwnerId;
+    private string title = string.Empty;
+    private string body = string.Empty;
+    private string? errorMessage;
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            users = await UserService.GetUsersAsync();
+            if (users != null && users.Any())
+            {
+                usersMap = users.ToDictionary(u => u.UserId, u => u.Name);
+                if (selectedOwnerId == 0)
+                {
+                    selectedOwnerId = users.First().UserId;
+                }
+            }
+            
+            posts = await PostService.GetPostsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading data: {ex.Message}");
+        }
+    }
+
+    private void TogglePostForm()
+    {
+        showPostForm = !showPostForm;
+        if (showPostForm)
+        {
+            title = string.Empty;
+            body = string.Empty;
+            errorMessage = null;
+        }
+    }
+
+    private async Task CreatePost()
+    {
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            errorMessage = "Post title cannot be empty.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            errorMessage = "Post content cannot be empty.";
+            return;
+        }
+
+        try
+        {
+            isSubmitting = true;
+            var dto = new CreatePostDto
+            {
+                Title = title,
+                Body = body,
+                OwnerId = selectedOwnerId
+            };
+
+            await PostService.CreatePostAsync(dto);
+            
+            title = string.Empty;
+            body = string.Empty;
+            showPostForm = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private string GetUserName(int ownerId)
+    {
+        return usersMap.TryGetValue(ownerId, out var name) ? name : $"User #{ownerId}";
+    }
+}

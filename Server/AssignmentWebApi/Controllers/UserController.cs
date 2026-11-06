@@ -1,17 +1,17 @@
 ﻿using APIContracts;
 using Entities;
-using FileRepositories;
 using Microsoft.AspNetCore.Mvc;
+using RepositoryContracts;
 
 namespace AssignmentWebApi.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("api/[controller]")]
 public class UserController : ControllerBase
 {
-    private UserFileRepository userRepository;
+    private IUserRepository userRepository;
     
-    public UserController(UserFileRepository userRepository)
+    public UserController(IUserRepository userRepository)
     {
         this.userRepository = userRepository;
     }
@@ -54,8 +54,8 @@ public class UserController : ControllerBase
         }
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetSingle([FromQuery] int id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetSingle(int id)
     {
         try
         {
@@ -118,7 +118,7 @@ public class UserController : ControllerBase
             };
 
             await userRepository.UpdateAsync(userToUpdate);
-            return NoContent(); 
+            return Ok(new UserResponseDto { UserId = id, Name = userToUpdate.Name, UserStatus = userToUpdate.UserStatus });
         }
         catch (KeyNotFoundException ex)
         {

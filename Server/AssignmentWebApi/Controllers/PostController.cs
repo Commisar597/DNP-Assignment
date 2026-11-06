@@ -1,19 +1,19 @@
 ﻿using APIContracts;
 using Entities;
-using FileRepositories;
 using Microsoft.AspNetCore.Mvc;
+using RepositoryContracts;
 
 namespace AssignmentWebApi.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("api/[controller]")]
 public class PostController : ControllerBase
 {
-    private PostFileRepository postRepository;
+    private IPostRepository postRepository;
     
-    public PostController(PostFileRepository postRepository)
+    public PostController(IPostRepository  postRepository)
     {
-        this.postRepository = postRepository;
+        this.postRepository  = postRepository;
     }
     
     [HttpPost]
@@ -46,8 +46,8 @@ public class PostController : ControllerBase
         }
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetSingle([FromQuery] int id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetSingle(int id)
     {
         try
         {
@@ -108,7 +108,8 @@ public class PostController : ControllerBase
             };
 
             await postRepository.UpdateAsync(postToUpdate);
-            return NoContent(); 
+            Post updated = await postRepository.GetSingleAsync(id);
+            return Ok(new PostResponseDto { PostId = updated.PostId, Title = updated.Title, Body = updated.Body, OwnerId = updated.OwnerId });
         }
         catch (KeyNotFoundException ex)
         {

@@ -1,0 +1,32 @@
+[
+  {
+    "UserId": 1,
+    "Name": "TechPriest_77B",
+    "Password": "password123",
+    "UserStatus": "Magos Biologis / IT Support"
+  },
+  {
+    "UserId": 2,
+    "Name": "Inquisitor_Stern",
+    "Password": "password123",
+    "UserStatus": "Ordo Hereticus (Moderator)"
+  },
+  {
+    "UserId": 3,
+    "Name": "Trazyn_The_Infinite",
+    "Password": "password123",
+    "UserStatus": "Collector of Rare Nonsense"
+  },
+  {
+    "UserId": 4,
+    "Name": "Ork_Boss_Ghaz",
+    "Password": "password123",
+    "UserStatus": "WARBOSS (WAAAGH!)"
+  },
+  {
+    "UserId": 5,
+    "Name": "AlphaLegionary_Maybe",
+    "Password": "password123",
+    "UserStatus": "I am Alpharius"
+  }
+]

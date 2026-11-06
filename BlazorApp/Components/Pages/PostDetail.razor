@@ -1,0 +1,269 @@
+﻿@page "/posts/{Id:int}"
+@using APIContracts
+@using BlazorApp.Services
+@inject IPostService PostService
+@inject ICommentService CommentService
+@inject IUserService UserService
+
+@if (post == null)
+{
+    <p><em>Loading post...</em></p>
+}
+else
+{
+    <div class="container mt-4 mb-5">
+        <h2>@post.Title</h2>
+        <p class="text-muted">
+            Post author: <a href="/users/@post.OwnerId">@postOwnerName</a>
+        </p>
+        <hr />
+        <div class="p-3 bg-light rounded mb-4">
+            <p style="white-space: pre-wrap;">@post.Body</p>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">Comments (@(allComments?.Count() ?? 0))</h4>
+            <button class="btn btn-sm btn-outline-primary" @onclick="ToggleMainCommentForm">
+                @(showMainCommentForm ? "Close" : "Leave a Comment")
+            </button>
+        </div>
+
+        @if (showMainCommentForm)
+        {
+            <div class="card p-3 mb-4 shadow-sm bg-light">
+                <h5 class="mb-3">New Comment</h5>
+                <div class="mb-2" style="max-width: 200px;">
+                    <label class="form-label small">Author ID:</label>
+                    <input type="number" class="form-control form-control-sm" @bind="newCommentOwnerId" />
+                </div>
+                <div class="mb-2">
+                    <textarea class="form-control form-control-sm" rows="3" @bind="newCommentBody" placeholder="Your text..."></textarea>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button class="btn btn-sm btn-primary" @onclick="CreateComment">Send</button>
+                </div>
+            </div>
+        }
+
+        @if (allComments == null)
+        {
+            <p><em>Loading comments...</em></p>
+        }
+        else if (!allComments.Any())
+        {
+            <p class="text-muted">No one has left a comment yet. Be the first!</p>
+        }
+        else
+        {
+            @foreach (var comment in allComments.Where(c => c.ParentCommentId == null))
+            {
+                @RenderCommentThread(comment, 0)
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private PostResponseDto? post;
+    private IEnumerable<CommentResponseDto>? allComments;
+    private string postOwnerName = "Loading...";
+    private Dictionary<int, string> usersMap = new();
+
+    private bool showMainCommentForm = false;
+    private string newCommentBody = string.Empty;
+    private int newCommentOwnerId = 1;
+
+    private int? replyingToCommentId = null;
+    private string replyBody = string.Empty;
+    private int replyOwnerId = 1;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            post = await PostService.GetPostByIdAsync(Id);
+            allComments = await CommentService.GetCommentsByPostIdAsync(Id);
+
+            var users = await UserService.GetUsersAsync();
+            usersMap = users.ToDictionary(u => u.UserId, u => u.Name);
+
+            if (usersMap.TryGetValue(post.OwnerId, out var ownerName))
+            {
+                postOwnerName = ownerName;
+            }
+            else
+            {
+                postOwnerName = $"User #{post.OwnerId}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading post details: {ex.Message}");
+        }
+    }
+
+    private void ToggleMainCommentForm()
+    {
+        showMainCommentForm = !showMainCommentForm;
+        if (showMainCommentForm)
+        {
+            newCommentBody = string.Empty;
+        }
+    }
+
+    private async Task CreateComment()
+    {
+        if (string.IsNullOrWhiteSpace(newCommentBody)) return;
+
+        try
+        {
+            var dto = new CreateCommentDto
+            {
+                Body = newCommentBody,
+                PostId = Id,
+                OwnerId = newCommentOwnerId,
+                ParentCommentId = null
+            };
+
+            await CommentService.CreateCommentAsync(dto);
+            newCommentBody = string.Empty;
+            showMainCommentForm = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating comment: {ex.Message}");
+        }
+    }
+
+    private async Task CreateReply(int parentId)
+    {
+        if (string.IsNullOrWhiteSpace(replyBody)) return;
+
+        try
+        {
+            var dto = new CreateCommentDto
+            {
+                Body = replyBody,
+                PostId = Id,
+                OwnerId = replyOwnerId,
+                ParentCommentId = parentId
+            };
+
+            await CommentService.CreateCommentAsync(dto);
+            replyBody = string.Empty;
+            replyingToCommentId = null;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating reply: {ex.Message}");
+        }
+    }
+
+    private void ToggleReplyForm(int commentId)
+    {
+        if (replyingToCommentId == commentId)
+        {
+            replyingToCommentId = null;
+        }
+        else
+        {
+            replyingToCommentId = commentId;
+            replyBody = string.Empty;
+        }
+    }
+
+    private RenderFragment RenderCommentThread(CommentResponseDto comment, int depth) => builder =>
+    {
+        var marginClass = depth > 0 ? $"ms-{Math.Min(depth * 4, 5)}" : "";
+        
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", $"card mb-2 p-3 shadow-sm {marginClass}");
+        
+        builder.OpenElement(2, "div");
+        builder.AddAttribute(3, "class", "d-flex justify-content-between align-items-center mb-1");
+        
+        builder.OpenElement(4, "p");
+        builder.AddAttribute(5, "class", "small text-muted mb-0");
+        builder.OpenElement(6, "a");
+        builder.AddAttribute(7, "href", $"/users/{comment.OwnerId}");
+        builder.AddContent(8, usersMap.TryGetValue(comment.OwnerId, out var name) ? name : $"User #{comment.OwnerId}");
+        builder.CloseElement();
+        builder.AddContent(9, ":");
+        builder.CloseElement();
+
+        builder.OpenElement(10, "button");
+        builder.AddAttribute(11, "class", "btn btn-sm btn-outline-secondary py-0 px-2");
+        builder.AddAttribute(12, "style", "font-size: 0.8rem;");
+        builder.AddAttribute(13, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => ToggleReplyForm(comment.CommentId)));
+        builder.AddContent(14, replyingToCommentId == comment.CommentId ? "Close" : "Reply");
+        builder.CloseElement();
+
+        builder.CloseElement();
+
+        builder.OpenElement(15, "p");
+        builder.AddAttribute(16, "class", "mb-2 mt-1");
+        builder.AddContent(17, comment.Body);
+        builder.CloseElement();
+
+        if (replyingToCommentId == comment.CommentId)
+        {
+            builder.OpenElement(18, "div");
+            builder.AddAttribute(19, "class", "p-2 bg-light rounded mt-2 border");
+
+            builder.OpenElement(20, "div");
+            builder.AddAttribute(21, "class", "mb-2");
+            builder.OpenElement(22, "label");
+            builder.AddAttribute(23, "class", "form-label small mb-0");
+            builder.AddContent(24, "Reply author ID:");
+            builder.CloseElement();
+            builder.OpenElement(25, "input");
+            builder.AddAttribute(26, "type", "number");
+            builder.AddAttribute(27, "class", "form-control form-control-sm");
+            builder.AddAttribute(28, "style", "max-width: 120px;");
+            builder.AddAttribute(29, "value", replyOwnerId);
+            builder.AddAttribute(30, "onchange", Microsoft.AspNetCore.Components.EventCallback.Factory.CreateBinder(this, __value => replyOwnerId = __value, replyOwnerId));
+            builder.CloseElement();
+            builder.CloseElement();
+
+            builder.OpenElement(31, "textarea");
+            builder.AddAttribute(32, "class", "form-control form-control-sm mb-2");
+            builder.AddAttribute(33, "rows", "2");
+            builder.AddAttribute(34, "placeholder", "Write a reply...");
+            builder.AddAttribute(35, "value", replyBody);
+            builder.AddAttribute(36, "onchange", Microsoft.AspNetCore.Components.EventCallback.Factory.CreateBinder(this, __value => replyBody = __value, replyBody));
+            builder.CloseElement();
+
+            builder.OpenElement(37, "div");
+            builder.AddAttribute(38, "class", "d-flex justify-content-end");
+            builder.OpenElement(39, "button");
+            builder.AddAttribute(40, "class", "btn btn-sm btn-primary");
+            builder.AddAttribute(41, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => CreateReply(comment.CommentId)));
+            builder.AddContent(42, "Send Reply");
+            builder.CloseElement();
+            builder.CloseElement();
+
+            builder.CloseElement(); 
+        }
+
+        if (allComments != null)
+        {
+            var replies = allComments.Where(c => c.ParentCommentId == comment.CommentId);
+            foreach (var reply in replies)
+            {
+                builder.AddContent(43, RenderCommentThread(reply, depth + 1));
+            }
+        }
+
+        builder.CloseElement(); 
+    };
+}

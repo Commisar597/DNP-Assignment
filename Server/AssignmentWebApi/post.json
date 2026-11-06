@@ -1,0 +1,26 @@
+[
+  {
+    "PostId": 1,
+    "Title": "URGENT! Server started smoking after a prayer to the Omnissiah",
+    "Body": "Brothers of the Machine Spirit! I anointed the server rack with holy oil as written in the 41st Millennium manual and chanted the Boot-up Litany. The server started making sounds of Holy Wrath and is now emitting sacred smoke. What did I do wrong? Was the 'reboot' utility lost back in the Dark Age of Technology???",
+    "OwnerId": 1
+  },
+  {
+    "PostId": 2,
+    "Title": "Questionnaire: Is your neighbor a heretic?",
+    "Body": "A simple 3-question test:\n1. Do they smile more than once a week?\n2. Do they read books without purity seals?\n3. Have they spilled sacred paste on the altar of the Omnissiah?\nIf you answered 'Yes' to any of these, leave their address in the comments below. The Inquisition dispatch team is already on their way.",
+    "OwnerId": 2
+  },
+  {
+    "PostId": 3,
+    "Title": "QUESTION ABOUT RED COLOR AND SPEED!!!!!",
+    "Body": "BOYZ, I PAINTED MY SERVER RED, BUT THE INTERNET DIDN'T GET 3 TIMES FASTER AT ALL!!! WOT IS DIS??? SHOULD I HAVE ADDED MORE DAKKA INTO THE CASING??? PLEZ HELP, WAAAGH!!!",
+    "OwnerId": 4
+  },
+  {
+    "PostId": 4,
+    "Title": "Looking for a rare Emperor poster for my collection (no copies)",
+    "Body": "Greetings. Ready to trade a hypercube containing a live C'tan for a working 2026 Blazor server in mint condition. I will place your forum in my Solemnace museum.",
+    "OwnerId": 3
+  }
+]

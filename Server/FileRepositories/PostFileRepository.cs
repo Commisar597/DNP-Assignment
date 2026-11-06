@@ -48,7 +48,8 @@ public class PostFileRepository : IPostRepository
         {
             throw new KeyNotFoundException($"Post with ID {post.PostId} not found.");
         }
-        existingPost.Body = post.Body; 
+        existingPost.Title = post.Title;
+        existingPost.Body = post.Body;
         await SavePostsAsync(posts);
     }
     

@@ -1,0 +1,42 @@
+﻿@page "/users"
+@using APIContracts
+@using BlazorApp.Services
+@inject IUserService UserService
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Forum Members</h3>
+    <a href="/users/create" class="btn btn-outline-primary">+ Register User</a>
+</div>
+
+@if (users == null)
+{
+    <p><em>Loading users...</em></p>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var user in users)
+        {
+            <a href="/users/@user.UserId" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <span>@user.Name</span>
+                <span class="badge bg-secondary">Status: @user.UserStatus</span>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private IEnumerable<UserResponseDto>? users;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            users = await UserService.GetUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+        }
+    }
+}

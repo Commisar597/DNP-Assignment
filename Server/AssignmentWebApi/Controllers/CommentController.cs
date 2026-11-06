@@ -1,17 +1,17 @@
 ﻿using APIContracts;
 using Entities;
-using FileRepositories;
 using Microsoft.AspNetCore.Mvc;
+using RepositoryContracts;
 
 namespace AssignmentWebApi.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("api/[controller]")]
 public class CommentController : ControllerBase
 {
-    private readonly CommentFileRepository commentRepository;
+    private readonly ICommentRepository commentRepository;
     
-    public CommentController(CommentFileRepository commentRepository)
+    public CommentController(ICommentRepository commentRepository)
     {
         this.commentRepository = commentRepository;
     }
@@ -25,7 +25,8 @@ public class CommentController : ControllerBase
             {
                 Body = request.Body,
                 PostId = request.PostId,
-                OwnerId = request.OwnerId
+                OwnerId = request.OwnerId,
+                ParentCommentId = request.ParentCommentId
             };
             Comment createdComment = await commentRepository.AddAsync(comment); 
             CommentResponseDto responseDto = new()
@@ -33,7 +34,8 @@ public class CommentController : ControllerBase
                 CommentId = createdComment.CommentId,
                 Body = createdComment.Body,
                 PostId = createdComment.PostId,
-                OwnerId = createdComment.OwnerId
+                OwnerId = createdComment.OwnerId,
+                ParentCommentId = createdComment.ParentCommentId,
             };
 
             return CreatedAtAction(nameof(GetSingle), new { id = responseDto.CommentId }, responseDto);
@@ -45,8 +47,8 @@ public class CommentController : ControllerBase
         }
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetSingle([FromQuery] int id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetSingle(int id)
     {
         try
         {
@@ -56,6 +58,7 @@ public class CommentController : ControllerBase
                 CommentId = comment.CommentId,
                 Body = comment.Body,
                 PostId = comment.PostId,
+                ParentCommentId = comment.ParentCommentId,
                 OwnerId = comment.OwnerId
             };
 
@@ -73,28 +76,34 @@ public class CommentController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetMany([FromQuery] int? postId, [FromQuery] int? ownerId)
+    public async Task<IActionResult> GetMany([FromQuery] int? postId, [FromQuery] int? ownerId, [FromQuery] int? parentCommentId)
     {
         try
         {
             IQueryable<Comment> commentsQuery = commentRepository.GetMany();
-            
+        
             if (postId.HasValue)
             {
                 commentsQuery = commentsQuery.Where(c => c.PostId == postId.Value);
             }
-            
+        
             if (ownerId.HasValue)
             {
                 commentsQuery = commentsQuery.Where(c => c.OwnerId == ownerId.Value);
             }
-            
+        
+            if (parentCommentId.HasValue)
+            {
+                commentsQuery = commentsQuery.Where(c => c.ParentCommentId == parentCommentId.Value);
+            }
+        
             var result = commentsQuery.Select(c => new CommentResponseDto
             {
                 CommentId = c.CommentId,
                 Body = c.Body,
                 PostId = c.PostId,
-                OwnerId = c.OwnerId
+                OwnerId = c.OwnerId,
+                ParentCommentId = c.ParentCommentId
             }).ToList();
 
             return Ok(result);
@@ -118,7 +127,8 @@ public class CommentController : ControllerBase
             };
 
             await commentRepository.UpdateAsync(commentToUpdate);
-            return NoContent(); 
+            Comment updated = await commentRepository.GetSingleAsync(id);
+            return Ok(new CommentResponseDto {CommentId = updated.CommentId, Body = updated.Body, PostId = updated.PostId, OwnerId = updated.OwnerId, ParentCommentId = updated.ParentCommentId});
         }
         catch (KeyNotFoundException ex)
         {

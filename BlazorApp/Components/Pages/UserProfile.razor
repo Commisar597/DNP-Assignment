@@ -1,0 +1,61 @@
+﻿@page "/users/{Id:int}"
+@using APIContracts
+@using BlazorApp.Services
+@inject IUserService UserService
+@inject IPostService PostService
+
+@if (user == null)
+{
+    <p><em>Loading profile...</em></p>
+}
+else
+{
+    <div class="card p-4 shadow-sm">
+        <h2>User Profile: @user.Name</h2>
+        <p><strong>ID:</strong> @user.UserId</p>
+        <p><strong>Status:</strong> @user.UserStatus</p>
+    </div>
+
+    <h4 class="mt-4">User Posts</h4>
+    @if (userPosts == null)
+    {
+        <p><em>Loading user posts...</em></p>
+    }
+    else if (!userPosts.Any())
+    {
+        <p class="text-muted">This user hasn't written anything yet.</p>
+    }
+    else
+    {
+        <div class="list-group mt-2">
+            @foreach (var post in userPosts)
+            {
+                <a href="/posts/@post.PostId" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">@post.Title</h5>
+                    <p class="mb-1 text-truncate">@post.Body</p>
+                </a>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private UserResponseDto? user;
+    private IEnumerable<PostResponseDto>? userPosts;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            user = await UserService.GetUserByIdAsync(Id);
+            userPosts = await PostService.GetPostsAsync(ownerId: Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading profile: {ex.Message}");
+        }
+    }
+}
