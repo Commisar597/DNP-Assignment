@@ -53,7 +53,7 @@ public class HttpPostService : IPostService
 
     public async Task<IEnumerable<PostResponseDto>> GetPostsAsync(int? ownerId = null)
     {
-        string url = ownerId.HasValue ? $"api/posts?ownerId={ownerId}" : "api/post";
+        string url = ownerId.HasValue ? $"api/post?ownerId={ownerId}" : "api/post";
         return await client.GetFromJsonAsync<IEnumerable<PostResponseDto>>(url)
                ?? Enumerable.Empty<PostResponseDto>();
     }

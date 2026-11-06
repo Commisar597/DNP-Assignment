@@ -1,5 +1,4 @@
-﻿@page "/"
-@page "/posts"
+﻿@page "/posts"
 @using APIContracts
 @using BlazorApp.Services
 @inject IPostService PostService
@@ -9,12 +8,19 @@
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3>Forum — All Discussions</h3>
-        <button class="btn btn-primary btn-sm" @onclick="TogglePostForm">
-            @(showPostForm ? "Close" : "+ Create Topic")
-        </button>
+        @if (IsLoggedIn)
+        {
+            <button class="btn btn-primary btn-sm" @onclick="TogglePostForm">
+                @(showPostForm ? "Close" : "+ Create Topic")
+            </button>
+        }
+        else
+        {
+            <span class="text-muted small">You need to register to create a topic</span>
+        }
     </div>
 
-    @if (showPostForm)
+    @if (showPostForm && IsLoggedIn)
     {
         <div class="card p-3 mb-4 shadow-sm bg-light">
             <h5 class="mb-3">New Discussion Topic</h5>
@@ -24,48 +30,24 @@
                 <div class="alert alert-danger py-2">@errorMessage</div>
             }
 
-            @if (users == null)
-            {
-                <p><em>Loading users...</em></p>
-            }
-            else if (!users.Any())
-            {
-                <div class="alert alert-warning py-2">
-                    No users found! Please <a href="/users/create">register a member</a> first.
-                </div>
-            }
-            else
-            {
-                <div class="mb-2">
-                    <label class="form-label small">Topic Author:</label>
-                    <select class="form-select form-select-sm" @bind="selectedOwnerId">
-                        @foreach (var user in users)
-                        {
-                            <option value="@user.UserId">@user.Name (ID: @user.UserId)</option>
-                        }
-                    </select>
-                </div>
+            <div class="mb-2">
+                <label class="form-label small">Topic Title:</label>
+                <input type="text" class="form-control form-control-sm" @bind="title" placeholder="Enter title..." />
+            </div>
 
-                <div class="mb-2">
-                    <label class="form-label small">Topic Title:</label>
-                    <input type="text" class="form-control form-control-sm" @bind="title" placeholder="Enter title..." />
-                </div>
+            <div class="mb-2">
+                <label class="form-label small">Post Content:</label>
+                <textarea class="form-control form-control-sm" rows="3" @bind="body" placeholder="Write your message text..."></textarea>
+            </div>
 
-                <div class="mb-2">
-                    <label class="form-label small">Post Content:</label>
-                    <textarea class="form-control form-control-sm" rows="3" @bind="body" placeholder="Write your message text..."></textarea>
-                </div>
-
-                <div class="d-flex justify-content-end">
-                    <button class="btn btn-sm btn-success" @onclick="CreatePost" disabled="@isSubmitting">
-                        @(isSubmitting ? "Publishing..." : "Publish Post")
-                    </button>
-                </div>
-            }
+            <div class="d-flex justify-content-end">
+                <button class="btn btn-sm btn-success" @onclick="CreatePost" disabled="@isSubmitting">
+                    @(isSubmitting ? "Publishing..." : "Publish Post")
+                </button>
+            </div>
         </div>
     }
 
-    <!-- Лента постов -->
     @if (posts == null)
     {
         <p><em>Loading posts...</em></p>
@@ -95,11 +77,14 @@
 
 @code {
     private IEnumerable<PostResponseDto>? posts;
-    private IEnumerable<UserResponseDto>? users;
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
     private Dictionary<int, string> usersMap = new();
+    private int currentUserId;
+    private bool IsLoggedIn => currentUserId > 0;
 
     private bool showPostForm = false;
-    private int selectedOwnerId;
     private string title = string.Empty;
     private string body = string.Empty;
     private string? errorMessage;
@@ -107,6 +92,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateTask;
+        var idClaim = authState.User.Claims.FirstOrDefault(c => c.Type == "Id");
+        if (idClaim != null && int.TryParse(idClaim.Value, out int id))
+        {
+            currentUserId = id;
+        }
+
         await LoadData();
     }
 
@@ -114,16 +106,9 @@
     {
         try
         {
-            users = await UserService.GetUsersAsync();
-            if (users != null && users.Any())
-            {
-                usersMap = users.ToDictionary(u => u.UserId, u => u.Name);
-                if (selectedOwnerId == 0)
-                {
-                    selectedOwnerId = users.First().UserId;
-                }
-            }
-            
+            var users = await UserService.GetUsersAsync();
+            usersMap = users.ToDictionary(u => u.UserId, u => u.Name);
+
             posts = await PostService.GetPostsAsync();
         }
         catch (Exception ex)
@@ -147,6 +132,12 @@
     {
         errorMessage = null;
 
+        if (!IsLoggedIn)
+        {
+            errorMessage = "You have to log in first.";
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(title))
         {
             errorMessage = "Post title cannot be empty.";
@@ -166,7 +157,7 @@
             {
                 Title = title,
                 Body = body,
-                OwnerId = selectedOwnerId
+                OwnerId = currentUserId
             };
 
             await PostService.CreatePostAsync(dto);

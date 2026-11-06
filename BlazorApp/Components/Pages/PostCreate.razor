@@ -1,8 +1,8 @@
 ﻿@page "/posts/create"
+@attribute [Authorize]
 @using APIContracts
 @using BlazorApp.Services
 @inject IPostService PostService
-@inject IUserService UserService
 @inject NavigationManager Navigation
 
 <div class="container mt-4" style="max-width: 700px;">
@@ -13,52 +13,31 @@
         <div class="alert alert-danger">@errorMessage</div>
     }
 
-    @if (users == null)
-    {
-        <p><em>Loading users list...</em></p>
-    }
-    else if (!users.Any())
-    {
-        <div class="alert alert-warning">
-            There are not any users on the forum yet! Please <a href="/users/create">register a member</a> first.
+    <div class="card p-4 shadow-sm mt-3">
+        <div class="mb-3">
+            <label class="form-label">Topic Title:</label>
+            <input type="text" class="form-control" @bind="title" placeholder="Enter title..." />
         </div>
-    }
-    else
-    {
-        <div class="card p-4 shadow-sm mt-3">
-            <div class="mb-3">
-                <label class="form-label">Topic Author:</label>
-                <select class="form-select" @bind="selectedOwnerId">
-                    @foreach (var user in users)
-                    {
-                        <option value="@user.UserId">@user.Name (ID: @user.UserId)</option>
-                    }
-                </select>
-            </div>
 
-            <div class="mb-3">
-                <label class="form-label">Topic Title:</label>
-                <input type="text" class="form-control" @bind="title" placeholder="Enter title..." />
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Post Content:</label>
-                <textarea class="form-control" rows="6" @bind="body" placeholder="Write your message text..."></textarea>
-            </div>
-
-            <div class="d-flex justify-content-between mt-3">
-                <a href="/posts" class="btn btn-outline-secondary">Cancel</a>
-                <button class="btn btn-success" @onclick="CreatePost" disabled="@isSubmitting">
-                    @(isSubmitting ? "Publishing..." : "Publish Post")
-                </button>
-            </div>
+        <div class="mb-3">
+            <label class="form-label">Post Content:</label>
+            <textarea class="form-control" rows="6" @bind="body" placeholder="Write your message text..."></textarea>
         </div>
-    }
+
+        <div class="d-flex justify-content-between mt-3">
+            <a href="/posts" class="btn btn-outline-secondary">Cancel</a>
+            <button class="btn btn-success" @onclick="CreatePost" disabled="@isSubmitting">
+                @(isSubmitting ? "Publishing..." : "Publish Post")
+            </button>
+        </div>
+    </div>
 </div>
 
 @code {
-    private IEnumerable<UserResponseDto>? users;
-    private int selectedOwnerId;
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    private int currentUserId;
     private string title = string.Empty;
     private string body = string.Empty;
     private string? errorMessage;
@@ -66,23 +45,23 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try
+        var authState = await AuthStateTask;
+        var idClaim = authState.User.Claims.FirstOrDefault(c => c.Type == "Id");
+        if (idClaim != null && int.TryParse(idClaim.Value, out int id))
         {
-            users = await UserService.GetUsersAsync();
-            if (users != null && users.Any())
-            {
-                selectedOwnerId = users.First().UserId;
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error loading users: {ex.Message}";
+            currentUserId = id;
         }
     }
 
     private async Task CreatePost()
     {
         errorMessage = null;
+
+        if (currentUserId <= 0)
+        {
+            errorMessage = "You have to log in first.";
+            return;
+        }
 
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -103,7 +82,7 @@
             {
                 Title = title,
                 Body = body,
-                OwnerId = selectedOwnerId
+                OwnerId = currentUserId
             };
 
             var createdPost = await PostService.CreatePostAsync(dto);

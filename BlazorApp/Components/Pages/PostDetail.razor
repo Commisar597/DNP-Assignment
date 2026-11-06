@@ -4,6 +4,8 @@
 @inject IPostService PostService
 @inject ICommentService CommentService
 @inject IUserService UserService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 @if (post == null)
 {
@@ -12,30 +14,68 @@
 else
 {
     <div class="container mt-4 mb-5">
-        <h2>@post.Title</h2>
-        <p class="text-muted">
-            Post author: <a href="/users/@post.OwnerId">@postOwnerName</a>
-        </p>
-        <hr />
-        <div class="p-3 bg-light rounded mb-4">
-            <p style="white-space: pre-wrap;">@post.Body</p>
-        </div>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (editingPost)
+        {
+            <div class="card p-3 mb-4 shadow-sm bg-light">
+                <h5 class="mb-3">Edit Post</h5>
+                <div class="mb-2">
+                    <label class="form-label small">Title:</label>
+                    <input type="text" class="form-control form-control-sm" @bind="editTitle" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Content:</label>
+                    <textarea class="form-control form-control-sm" rows="5" @bind="editBody"></textarea>
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-sm btn-secondary" @onclick="CancelEditPost">Cancel</button>
+                    <button class="btn btn-sm btn-success" @onclick="SavePost">Save</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-between align-items-start">
+                <h2>@post.Title</h2>
+                @if (IsPostOwner)
+                {
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-success" @onclick="StartEditPost">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="DeletePost">Delete</button>
+                    </div>
+                }
+            </div>
+            <p class="text-muted">
+                Post author: <a href="/users/@post.OwnerId">@postOwnerName</a>
+            </p>
+            <hr />
+            <div class="p-3 bg-light rounded mb-4">
+                <p style="white-space: pre-wrap; overflow-wrap: anywhere;">@post.Body</p>
+            </div>
+        }
 
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4 class="mb-0">Comments (@(allComments?.Count() ?? 0))</h4>
-            <button class="btn btn-sm btn-outline-primary" @onclick="ToggleMainCommentForm">
-                @(showMainCommentForm ? "Close" : "Leave a Comment")
-            </button>
+            @if (IsLoggedIn)
+            {
+                <button class="btn btn-sm btn-outline-primary" @onclick="ToggleMainCommentForm">
+                    @(showMainCommentForm ? "Close" : "Leave a Comment")
+                </button>
+            }
+            else
+            {
+                <span class="text-muted small">You need to register to leave a comment</span>
+            }
         </div>
 
-        @if (showMainCommentForm)
+        @if (showMainCommentForm && IsLoggedIn)
         {
             <div class="card p-3 mb-4 shadow-sm bg-light">
                 <h5 class="mb-3">New Comment</h5>
-                <div class="mb-2" style="max-width: 200px;">
-                    <label class="form-label small">Author ID:</label>
-                    <input type="number" class="form-control form-control-sm" @bind="newCommentOwnerId" />
-                </div>
                 <div class="mb-2">
                     <textarea class="form-control form-control-sm" rows="3" @bind="newCommentBody" placeholder="Your text..."></textarea>
                 </div>
@@ -74,14 +114,40 @@ else
 
     private bool showMainCommentForm = false;
     private string newCommentBody = string.Empty;
-    private int newCommentOwnerId = 1;
 
     private int? replyingToCommentId = null;
     private string replyBody = string.Empty;
-    private int replyOwnerId = 1;
+
+    private bool editingPost = false;
+    private string editTitle = string.Empty;
+    private string editBody = string.Empty;
+
+    private int? editingCommentId = null;
+    private string editCommentBody = string.Empty;
+
+    private string? errorMessage;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+    private int currentUserId;
+    private bool IsLoggedIn => currentUserId > 0;
+    private bool IsPostOwner => IsLoggedIn && post != null && post.OwnerId == currentUserId;
 
     protected override async Task OnParametersSetAsync()
     {
+        var authState = await AuthStateTask;
+        var user = authState.User;
+
+        currentUserId = 0;
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            var idClaim = user.Claims.FirstOrDefault(c => c.Type == "Id");
+            if (idClaim != null && int.TryParse(idClaim.Value, out int id))
+            {
+                currentUserId = id;
+            }
+        }
+
         await LoadData();
     }
 
@@ -121,7 +187,7 @@ else
 
     private async Task CreateComment()
     {
-        if (string.IsNullOrWhiteSpace(newCommentBody)) return;
+        if (!IsLoggedIn || string.IsNullOrWhiteSpace(newCommentBody)) return;
 
         try
         {
@@ -129,7 +195,7 @@ else
             {
                 Body = newCommentBody,
                 PostId = Id,
-                OwnerId = newCommentOwnerId,
+                OwnerId = currentUserId,
                 ParentCommentId = null
             };
 
@@ -146,7 +212,7 @@ else
 
     private async Task CreateReply(int parentId)
     {
-        if (string.IsNullOrWhiteSpace(replyBody)) return;
+        if (!IsLoggedIn || string.IsNullOrWhiteSpace(replyBody)) return;
 
         try
         {
@@ -154,7 +220,7 @@ else
             {
                 Body = replyBody,
                 PostId = Id,
-                OwnerId = replyOwnerId,
+                OwnerId = currentUserId,
                 ParentCommentId = parentId
             };
 
@@ -182,16 +248,161 @@ else
         }
     }
 
+    private void StartEditPost()
+    {
+        if (post == null) return;
+        errorMessage = null;
+        editTitle = post.Title;
+        editBody = post.Body;
+        editingPost = true;
+    }
+
+    private void CancelEditPost()
+    {
+        editingPost = false;
+    }
+
+    private async Task SavePost()
+    {
+        errorMessage = null;
+        if (!IsPostOwner) return;
+
+        if (string.IsNullOrWhiteSpace(editTitle) || string.IsNullOrWhiteSpace(editBody))
+        {
+            errorMessage = "Title and content cannot be empty.";
+            return;
+        }
+
+        try
+        {
+            post = await PostService.UpdatePostAsync(Id, new UpdatePostDto { Title = editTitle, Body = editBody });
+            editingPost = false;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private async Task DeletePost()
+    {
+        errorMessage = null;
+        if (!IsPostOwner) return;
+
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Delete this post and all its comments?");
+        if (!confirmed) return;
+
+        try
+        {
+            if (allComments != null)
+            {
+                foreach (var c in allComments.ToList())
+                {
+                    await CommentService.DeleteCommentAsync(c.CommentId);
+                }
+            }
+
+            await PostService.DeletePostAsync(Id);
+            Navigation.NavigateTo("/posts");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void StartEditComment(CommentResponseDto comment)
+    {
+        errorMessage = null;
+        replyingToCommentId = null;
+        editingCommentId = comment.CommentId;
+        editCommentBody = comment.Body;
+    }
+
+    private void CancelEditComment()
+    {
+        editingCommentId = null;
+    }
+
+    private async Task SaveComment(CommentResponseDto comment)
+    {
+        errorMessage = null;
+        if (!IsLoggedIn || comment.OwnerId != currentUserId) return;
+
+        if (string.IsNullOrWhiteSpace(editCommentBody))
+        {
+            errorMessage = "Comment cannot be empty.";
+            return;
+        }
+
+        try
+        {
+            await CommentService.UpdateCommentAsync(comment.CommentId, new UpdateCommentDto { Body = editCommentBody });
+            editingCommentId = null;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private async Task DeleteComment(CommentResponseDto comment)
+    {
+        errorMessage = null;
+        if (!IsLoggedIn || comment.OwnerId != currentUserId) return;
+
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Delete this comment (and all replies to it)?");
+        if (!confirmed) return;
+
+        try
+        {
+            foreach (var id in CollectWithReplies(comment.CommentId))
+            {
+                await CommentService.DeleteCommentAsync(id);
+            }
+
+            editingCommentId = null;
+            replyingToCommentId = null;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private List<int> CollectWithReplies(int rootId)
+    {
+        var result = new List<int> { rootId };
+        if (allComments == null) return result;
+
+        var queue = new Queue<int>();
+        queue.Enqueue(rootId);
+        while (queue.Count > 0)
+        {
+            int current = queue.Dequeue();
+            foreach (var child in allComments.Where(c => c.ParentCommentId == current))
+            {
+                result.Add(child.CommentId);
+                queue.Enqueue(child.CommentId);
+            }
+        }
+        return result;
+    }
+
     private RenderFragment RenderCommentThread(CommentResponseDto comment, int depth) => builder =>
     {
         var marginClass = depth > 0 ? $"ms-{Math.Min(depth * 4, 5)}" : "";
-        
+        bool isOwner = IsLoggedIn && comment.OwnerId == currentUserId;
+        bool isEditing = editingCommentId == comment.CommentId;
+
         builder.OpenElement(0, "div");
         builder.AddAttribute(1, "class", $"card mb-2 p-3 shadow-sm {marginClass}");
-        
+
         builder.OpenElement(2, "div");
         builder.AddAttribute(3, "class", "d-flex justify-content-between align-items-center mb-1");
-        
+
         builder.OpenElement(4, "p");
         builder.AddAttribute(5, "class", "small text-muted mb-0");
         builder.OpenElement(6, "a");
@@ -201,58 +412,97 @@ else
         builder.AddContent(9, ":");
         builder.CloseElement();
 
-        builder.OpenElement(10, "button");
-        builder.AddAttribute(11, "class", "btn btn-sm btn-outline-secondary py-0 px-2");
-        builder.AddAttribute(12, "style", "font-size: 0.8rem;");
-        builder.AddAttribute(13, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => ToggleReplyForm(comment.CommentId)));
-        builder.AddContent(14, replyingToCommentId == comment.CommentId ? "Close" : "Reply");
-        builder.CloseElement();
+        builder.OpenElement(10, "div");
+        builder.AddAttribute(11, "class", "d-flex gap-1");
 
-        builder.CloseElement();
-
-        builder.OpenElement(15, "p");
-        builder.AddAttribute(16, "class", "mb-2 mt-1");
-        builder.AddContent(17, comment.Body);
-        builder.CloseElement();
-
-        if (replyingToCommentId == comment.CommentId)
+        if (IsLoggedIn)
         {
-            builder.OpenElement(18, "div");
-            builder.AddAttribute(19, "class", "p-2 bg-light rounded mt-2 border");
+            builder.OpenElement(12, "button");
+            builder.AddAttribute(13, "class", "btn btn-sm btn-outline-secondary py-0 px-2");
+            builder.AddAttribute(14, "style", "font-size: 0.8rem;");
+            builder.AddAttribute(15, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => ToggleReplyForm(comment.CommentId)));
+            builder.AddContent(16, replyingToCommentId == comment.CommentId ? "Close" : "Reply");
+            builder.CloseElement();
+        }
 
-            builder.OpenElement(20, "div");
-            builder.AddAttribute(21, "class", "mb-2");
-            builder.OpenElement(22, "label");
-            builder.AddAttribute(23, "class", "form-label small mb-0");
-            builder.AddContent(24, "Reply author ID:");
-            builder.CloseElement();
-            builder.OpenElement(25, "input");
-            builder.AddAttribute(26, "type", "number");
-            builder.AddAttribute(27, "class", "form-control form-control-sm");
-            builder.AddAttribute(28, "style", "max-width: 120px;");
-            builder.AddAttribute(29, "value", replyOwnerId);
-            builder.AddAttribute(30, "onchange", Microsoft.AspNetCore.Components.EventCallback.Factory.CreateBinder(this, __value => replyOwnerId = __value, replyOwnerId));
-            builder.CloseElement();
-            builder.CloseElement();
-
-            builder.OpenElement(31, "textarea");
-            builder.AddAttribute(32, "class", "form-control form-control-sm mb-2");
-            builder.AddAttribute(33, "rows", "2");
-            builder.AddAttribute(34, "placeholder", "Write a reply...");
-            builder.AddAttribute(35, "value", replyBody);
-            builder.AddAttribute(36, "onchange", Microsoft.AspNetCore.Components.EventCallback.Factory.CreateBinder(this, __value => replyBody = __value, replyBody));
+        if (isOwner)
+        {
+            builder.OpenElement(17, "button");
+            builder.AddAttribute(18, "class", "btn btn-sm btn-success py-0 px-2");
+            builder.AddAttribute(19, "style", "font-size: 0.8rem;");
+            builder.AddAttribute(20, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => StartEditComment(comment)));
+            builder.AddContent(21, "Edit");
             builder.CloseElement();
 
-            builder.OpenElement(37, "div");
-            builder.AddAttribute(38, "class", "d-flex justify-content-end");
-            builder.OpenElement(39, "button");
-            builder.AddAttribute(40, "class", "btn btn-sm btn-primary");
-            builder.AddAttribute(41, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => CreateReply(comment.CommentId)));
-            builder.AddContent(42, "Send Reply");
+            builder.OpenElement(22, "button");
+            builder.AddAttribute(23, "class", "btn btn-sm btn-danger py-0 px-2");
+            builder.AddAttribute(24, "style", "font-size: 0.8rem;");
+            builder.AddAttribute(25, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => DeleteComment(comment)));
+            builder.AddContent(26, "Delete");
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+        builder.CloseElement();
+
+        if (isEditing)
+        {
+            builder.OpenElement(30, "textarea");
+            builder.AddAttribute(31, "class", "form-control form-control-sm mb-2");
+            builder.AddAttribute(32, "rows", "3");
+            builder.AddAttribute(33, "value", editCommentBody);
+            builder.AddAttribute(34, "onchange", Microsoft.AspNetCore.Components.EventCallback.Factory.CreateBinder(this, __value => editCommentBody = __value, editCommentBody));
+            builder.CloseElement();
+
+            builder.OpenElement(35, "div");
+            builder.AddAttribute(36, "class", "d-flex justify-content-end gap-2 mb-2");
+
+            builder.OpenElement(37, "button");
+            builder.AddAttribute(38, "class", "btn btn-sm btn-secondary");
+            builder.AddAttribute(39, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => CancelEditComment()));
+            builder.AddContent(40, "Cancel");
+            builder.CloseElement();
+
+            builder.OpenElement(41, "button");
+            builder.AddAttribute(42, "class", "btn btn-sm btn-success");
+            builder.AddAttribute(43, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => SaveComment(comment)));
+            builder.AddContent(44, "Save");
+            builder.CloseElement();
+
+            builder.CloseElement();
+        }
+        else
+        {
+            builder.OpenElement(45, "p");
+            builder.AddAttribute(46, "class", "mb-2 mt-1");
+            builder.AddAttribute(47, "style", "overflow-wrap: anywhere;");
+            builder.AddContent(48, comment.Body);
+            builder.CloseElement();
+        }
+
+        if (IsLoggedIn && replyingToCommentId == comment.CommentId)
+        {
+            builder.OpenElement(50, "div");
+            builder.AddAttribute(51, "class", "p-2 bg-light rounded mt-2 border");
+
+            builder.OpenElement(52, "textarea");
+            builder.AddAttribute(53, "class", "form-control form-control-sm mb-2");
+            builder.AddAttribute(54, "rows", "2");
+            builder.AddAttribute(55, "placeholder", "Write a reply...");
+            builder.AddAttribute(56, "value", replyBody);
+            builder.AddAttribute(57, "onchange", Microsoft.AspNetCore.Components.EventCallback.Factory.CreateBinder(this, __value => replyBody = __value, replyBody));
+            builder.CloseElement();
+
+            builder.OpenElement(58, "div");
+            builder.AddAttribute(59, "class", "d-flex justify-content-end");
+            builder.OpenElement(60, "button");
+            builder.AddAttribute(61, "class", "btn btn-sm btn-primary");
+            builder.AddAttribute(62, "onclick", Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => CreateReply(comment.CommentId)));
+            builder.AddContent(63, "Send Reply");
             builder.CloseElement();
             builder.CloseElement();
 
-            builder.CloseElement(); 
+            builder.CloseElement();
         }
 
         if (allComments != null)
@@ -260,10 +510,10 @@ else
             var replies = allComments.Where(c => c.ParentCommentId == comment.CommentId);
             foreach (var reply in replies)
             {
-                builder.AddContent(43, RenderCommentThread(reply, depth + 1));
+                builder.AddContent(70, RenderCommentThread(reply, depth + 1));
             }
         }
 
-        builder.CloseElement(); 
+        builder.CloseElement();
     };
 }

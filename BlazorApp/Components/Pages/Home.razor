@@ -1,0 +1,18 @@
+﻿@page "/"
+@inject NavigationManager NavMgr
+
+<PageTitle>Home</PageTitle>
+
+<h1>Warhammer 40k Forum</h1>
+
+<AuthorizeView>
+    <Authorized>
+        <h3>Hello, @context.User.Identity?.Name</h3>
+    </Authorized>
+    <NotAuthorized>
+        <p>lol you are not logged in!</p>
+        <button class="btn btn-primary" @onclick='() => NavMgr.NavigateTo("login")'>go to login</button>
+    </NotAuthorized>
+</AuthorizeView>
+
+<p>Here you can browse interesting posts.</p>

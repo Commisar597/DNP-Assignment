@@ -1,0 +1,90 @@
+﻿@page "/users/{Id:int}"
+@using APIContracts
+@using BlazorApp.Services
+@inject IUserService UserService
+@inject IPostService PostService
+
+<div class="container mt-4" style="max-width: 700px;">
+    @if (notFound)
+    {
+        <div class="alert alert-warning">User #@Id was not found.</div>
+        <a href="/users" class="btn btn-outline-secondary">Back to members</a>
+    }
+    else if (user == null)
+    {
+        <p><em>Loading user...</em></p>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0">@user.Name</h3>
+            @if (isOwnProfile)
+            {
+                <a href="/profile" class="btn btn-outline-primary btn-sm">Edit my profile</a>
+            }
+        </div>
+
+        <p class="text-muted">Status: <span class="badge bg-secondary">@user.UserStatus</span></p>
+
+        <h5 class="mt-4">Posts by @user.Name</h5>
+        @if (posts == null)
+        {
+            <p><em>Loading posts...</em></p>
+        }
+        else if (!posts.Any())
+        {
+            <p class="text-muted">This user has not written any posts yet.</p>
+        }
+        else
+        {
+            <div class="list-group">
+                @foreach (var post in posts)
+                {
+                    <a href="/posts/@post.PostId" class="list-group-item list-group-item-action">
+                        <strong>@post.Title</strong>
+                        <div class="text-truncate text-muted small">@post.Body</div>
+                    </a>
+                }
+            </div>
+        }
+
+        <a href="/users" class="btn btn-outline-secondary mt-4">Back to members</a>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    private UserResponseDto? user;
+    private IEnumerable<PostResponseDto>? posts;
+    private bool notFound;
+    private bool isOwnProfile;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        user = null;
+        posts = null;
+        notFound = false;
+        isOwnProfile = false;
+
+        try
+        {
+            user = await UserService.GetUserByIdAsync(Id);
+            posts = await PostService.GetPostsAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading user {Id}: {ex.Message}");
+            notFound = user == null;
+            return;
+        }
+
+        var authState = await AuthStateTask;
+        var idClaim = authState.User.Claims.FirstOrDefault(c => c.Type == "Id");
+        isOwnProfile = idClaim != null && int.TryParse(idClaim.Value, out int currentId) && currentId == Id;
+    }
+}

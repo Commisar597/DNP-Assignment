@@ -1,0 +1,57 @@
+﻿@page "/login"
+@using BlazorApp.Auth
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager navMgr
+
+<AuthorizeView>
+    <NotAuthorized>
+        <div class="container mt-5" style="max-width: 400px;">
+            <h3>Please login</h3>
+            <div class="mb-3">
+                <label class="form-label">User name:</label>
+                <input type="text" class="form-control" @bind="userName" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password:</label>
+                <input type="password" class="form-control" @bind="password" />
+            </div>
+            
+            @if (!string.IsNullOrEmpty(errorLabel))
+            {
+                <div class="alert alert-danger py-2">
+                    @errorLabel
+                </div>
+            }
+            
+            <button class="btn btn-primary w-100" @onclick="LoginAsync">Log in</button>
+            <a href="users/create" class="btn btn-outline-secondary w-100 mt-2">Register</a>
+        </div>
+    </NotAuthorized>
+    <Authorized>
+        <div class="container mt-5">
+            <h3>Hello, @context.User.Identity?.Name</h3>
+            <p>You are already logged in!</p>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private string userName = string.Empty;
+    private string password = string.Empty;
+    private string errorLabel = string.Empty;
+
+    private async Task LoginAsync()
+    {
+        errorLabel = "";
+        try
+        {
+            await ((SimpleAuthProvider)AuthProvider).Login(userName, password);
+            navMgr.NavigateTo("/");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            errorLabel = $"Error: {e.Message}";
+        }
+    }
+}

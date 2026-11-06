@@ -81,4 +81,15 @@ public class UserFileRepository : IUserRepository
         List<User> users = Deserialize<List<User>>(usersAsJson) ?? new List<User>();
         return users.AsQueryable();
     }
+
+    public async Task<User> FindUserByNameAsync(string userName)
+    {
+        List<User> users = await LoadUsersAsync();
+        User? findedUser = users.FirstOrDefault(u => u.Name == userName);
+        if (findedUser == null)
+        {
+            throw new KeyNotFoundException($"User with UserName {userName} not found.");
+        }
+        return findedUser; 
+    }
 }
